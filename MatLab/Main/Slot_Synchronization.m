@@ -17,7 +17,7 @@ Slots_Offsets = [];
     % Период корреляционных максимумов в отсчётах
         CorrPeriod = 5120;
     % Число слотов, используемых для накопления
-        AccumulationSize = 50;
+        AccumulationSize = 15;
     % Использовать когерентное накопление. В противном случае будет
     % использовано некогерентное
         useKoherent = 1;
@@ -74,9 +74,9 @@ Slots_Offsets = [];
         subplot(2, 1, 2)
         plot(NonKoherentRes); grid on;
         title('Некогерентное накопление');
-        figure
-        histogram(abs(KoherentRes)); figure
-        histogram(abs(NonKoherentRes));
+        % figure
+        % histogram(abs(KoherentRes)); figure
+        % histogram(abs(NonKoherentRes));
     end
 
 % ДЗ:

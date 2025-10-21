@@ -3,8 +3,8 @@ close all;
 PSC = Generate_Primary_Synchronisation_Code();
 
 f = (-60e3:1e3:60e3);
-lags = (-L+1:L-1);
 L = length(PSC);
+lags = (-L+1:L-1);
 
 corr1 = zeros(length(f), 511);
 for i = 1:length(f)
