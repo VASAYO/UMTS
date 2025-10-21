@@ -17,9 +17,6 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
         CorrPeriod = 5120;
     % Число слотов, используемых для накопления
         AccumulationSize = 15;
-    % Использовать когерентное накопление. В противном случае будет
-    % использовано некогерентное
-        useKoherent = 1;
     % Ширина окрестности максимума, которая будет занулена. Чётное число
         OmitWidth = 48;
 
@@ -57,22 +54,16 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
 % Когерентное накопление результата
     KoherentRes = abs(sum(CorrRes2, 2));
 
-% Прорисовка результата накопления
-    if Flag_Draw 
-        figure;
-        plot(KoherentRes); grid on;
-        title('Когерентное накопление');
-    end
-
 % Определяем порог различения базовых станций от шума
-    Threshold = 1;
+    Threshold = quantile(KoherentRes, 0.993);
 
 % Обрабатываем все корреляционные максимумы, превышающие порог
     Slots_Offsets = [];
+    Processing = KoherentRes;
 
-    while sum(KoherentRes >= Threshold) > 0
+    while sum(Processing >= Threshold) > 0
         % Выбор самого высокого максимума
-            [~, Slots_Offsets(end+1)] = max(KoherentRes);
+            [~, Slots_Offsets(end+1)] = max(Processing);
             
         % Зануление выбранного максимума и его окрестностей
             % Определение границ зоны зануления
@@ -87,5 +78,13 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
                     Pos2 = Slots_Offsets(end) + OmitWidth/2;
                 end
 
-            KoherentRes(Pos1:Pos2) = 0;
+            Processing(Pos1:Pos2) = 0;
+    end
+
+% Прорисовка результата накопления
+    if Flag_Draw 
+        figure;
+        plot(KoherentRes); grid on;
+        yline(Threshold)
+        title('Когерентное накопление');
     end
