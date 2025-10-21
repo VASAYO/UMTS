@@ -10,13 +10,13 @@
     
 % Загрузка массива Signal с записью сигнала    
     % Beeline Megafon Megafon5 Megafon99 Megafon99_01 MTS   
-    load('Megafon'); % В кавычках указывается имя файла из
+    load('MTS'); % В кавычках указывается имя файла из
         % которого будет считана запись сигнала
          
 % Согласованная фильтрация сигнала    
     df = 0; % Пока что нет оснований выбрать другое значение частотной 
             % отстройки
-    FSignal = Matched_Filter(Signal, 0);
+    FSignal = Matched_Filter(Signal(7:end), 0);
     
 % Слотовая синхронизация - поиск базовых станций (БС)
     Slots_Offsets = Slot_Synchronization(FSignal, true);
