@@ -1,6 +1,16 @@
-function Output = Slot_Synchronization(Input, flag)
-%SLOT_SYNCHRONIZATION Summary of this function goes here
-%   Detailed explanation goes here
+function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
+% Функция выполняет процедуру слотовой синхронизации.
+%
+% Входные переменные:
+%   FSignal   - комплексный массив, содержащий отсчеты фильтрованного 
+%               сигнала;
+%   Flag_Draw – флаг необходимости прорисовки корреляционной
+%               кривой, Flag_Draw = true указывает на
+%               необходимость прорисовки.
+%
+% Выходные переменные:
+%   Slots_Offsets – массив значений сдвигов в FSignal до начала слотов
+%                   найденных сигналов базовых станций.
 
 % Число слотов для накопления сигнала
     N = 50;
@@ -12,15 +22,15 @@ function Output = Slot_Synchronization(Input, flag)
     PSPZeros = upsample(PSP, 2);
 
 % Корреляция с ПСП
-    corrRes = conv(Input, fliplr(conj(PSPZeros)));
+    corrRes = conv(FSignal, fliplr(conj(PSPZeros)));
 
 % 
-    InReshape = reshape(Input(1:5120*N), 5120, N);
+    InReshape = reshape(FSignal(1:5120*N), 5120, N);
 
     InReshape2 = [];
 
     for i = 1:N
-        InReshape2(:, end+1) = Input((1:5120+511) + (i-1)*5120);
+        InReshape2(:, end+1) = FSignal((1:5120+511) + (i-1)*5120);
     end
 
     corrRes2 = [];
