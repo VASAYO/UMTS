@@ -19,7 +19,7 @@ function FSignal = Matched_Filter(Signal, df)
         beta = 0.22;
 
     % Частота дискретизации
-        Fs = 2*R;
+        Fs = sps*R;
     % Частотная отстройка в Гц
         dfHz = df * R;
     % Импульсная характеристика согласованного фильтра
