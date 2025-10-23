@@ -74,3 +74,17 @@ Slot_Offset, Flag_Draw)
     Shift = Shift-1;
 
     Frame_Offset = Slot_Offset + Shift * 5120;
+
+%% Прорисовка результатов
+    if Flag_Draw
+        figure(Name='Frame_Synchronization.m');
+
+        surf(0:14, 0:63, abs(Metrics));
+
+        % Подписи
+            title({'Корреляционные метрики для', ...
+                ['Slot\_Offset = ', num2str(Slot_Offset), '.']} ...
+            );
+            xlabel('Циклический сдвиг');
+            ylabel('Номер скрэмблирующей группы');
+    end
