@@ -60,7 +60,7 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
     KoherentRes = abs(sum(CorrRes2, 2));
     KoherentRes = KoherentRes / mean(KoherentRes);
 
-% Обрабатываем все корреляционные максимумы, превышающие порог
+% Обрабатываем корреляционные максимумы, превышающие порог
     Slots_Offsets = [];
     Processing = KoherentRes;
     foundBS = 0;
@@ -99,8 +99,10 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
 %   обнаруженных базовых станций: 7-8  [done];
 % - Нормировка корреляционной кривой на ср. значение и порог в единицах ср. 
 %   значения [done];
-% - Ассиметричное зануление окрестностей максимума (20+1+40);
+% - Ассиметричное зануление окрестностей максимума (20+1+40) 
+%   [оставлена система 38+1+38];
 
 % Домашнее задание:
 %   - Исследовать зависимость порога от вероятности ложной тревоги 
-%   [MatLab\Main\FalseAlarm.m];
+%   [".\MatLab\Main\FalseAlarm.m"];
+%   [".\MatLab\Main\FalseAlarmResults\Зависимость Pлт от величины порога.png"];
