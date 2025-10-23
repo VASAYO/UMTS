@@ -15,69 +15,62 @@ Slot_Offset, Flag_Draw)
 %   
 %   Frame_Offset – значение сдвига в FSignal до начала кадра; 
 %   SG           - номер скремблирующей группы.
-Frame_Offset = [];
 
 % Генерация вторичных синхропоследовательностей
-    SSC = Generate_Secondary_Synchronisation_Codes.';
+    SSC = Generate_Secondary_Synchronisation_Codes;
 % Генерация таблицы с номерами скрэмблирующих групп
     ScrTable = Generate_Scrambling_Groups_Table;
 
-
-% Прореживание сигнала и слотовая синхронизация 
-    Chips = FSignal(Slot_Offset:2:end).';
-
 % Выбор из сигнала отсчётов первых 15 вторичных синхропоследовательностей
-    SSCSamples = zeros(256, 15);
+    SSCSamples = zeros(15, 256);
 
     for i = 1:15
-        SSCSamples(:, i) = Chips((1:256) + (i-1)*2560).';
-
-        SSCSamples(:, i) = FSignal((1:2:2*256) + Slot_Offset-1 + (i-1)*5120);
+        SSCSamples(i, :) = ...
+            FSignal((1:2:2*256)-1 + Slot_Offset + (i-1)*5120);
     end
 
-% Определение номера каждой вторичной синхропоследовательности
-    SSCNumbers = zeros(1, 15);
+% Корреляция каждой из 15 принятых последовательностей с 16 эталонными
+    CorrVals = zeros(15, 16);
 
-    if Flag_Draw
-        figure;
-    end
-
-    for i = 1:15
-        CorrVals = zeros(1, 16);
-        for j = 1:16
-            CorrVals(j) = sum(SSCSamples(:, i) .* conj(SSC(:, j)));
+    for rx_idx = 1:15
+        for ref_idx = 1:16
+            CorrVals(rx_idx, ref_idx) = ...
+                sum(SSCSamples(rx_idx, :) .* SSC(ref_idx, :));
         end
-
-        % Прорисовка
-            if Flag_Draw
-                subplot(5, 3, i);
-                plot(abs(CorrVals));
-                grid on;
-                title(i);
-            end
-
-        [~, SSCNumbers(i)] = max(CorrVals);
     end
+    clear ref_idx rx_idx;
 
-% Определение номера скрэмблирующей группы и циклического сдвига
-    HammingResults = zeros(64, 15);
+% Расчёт корреляционной метрики для каждой скрэмблирующей группы и для всех
+% вариантов циклического сдвига
+    Metrics = zeros(64, 15); % Строки соответствуют номеру 
+                             % скрэмблирующей группы (0..63), а столбцы - 
+                             % циклическим сдвигам
+                             % соответствующей скр-щей группы (0..14)
 
-    % Цикл по скрэмблирующим группам
-        for i = 1:64
-            % Цикл по циклическим сдвигам
-                for j = 0:14
-                    HammingResults(i, j+1) = sum(circshift(SSCNumbers, j) == ScrTable(i, :));
+    for scr_idx = 1:64 % Цикл по номерам скрэмблирующих групп
+        for sht_idx = 0:14 % Цикл по циклическим сдвигам
+
+            % Текущия скр-я группа с цикл. сдвигом
+                Scr_sht = circshift(ScrTable(scr_idx, :), sht_idx);
+
+            % Вычисление метрики
+                for sum_idx = 1:15
+                    Metrics(scr_idx, sht_idx+1) = ...
+                        Metrics(scr_idx, sht_idx+1) ...
+                                    + ...
+                        CorrVals(sum_idx, Scr_sht(sum_idx));
                 end
         end
+    end
 
+% Определение номера скрэмблирующей группы по номеру строчки Metrics
+    Buf = max(abs(Metrics), [], 2);
+    [~, SG] = max(Buf);
+    SG = SG-1;
 
-        [~, ind] = max(HammingResults, [], "all");
+% Кадровая синхронизация
+    Buf = max(abs(Metrics), [], 1);
+    [~, Shift] = max(Buf);
+    Shift = Shift-1;
 
-    % Номер скрэмблирующей группы
-        SG = mod(ind, 64) - 1;
-
-    % Cдвиг
-        Shift = floor(ind/64) + 1;
-        
-% ДЗ: 
-%   - Алгоритм, основанный на мягких решениях. 
+    Frame_Offset = Slot_Offset + Shift * 5120;
