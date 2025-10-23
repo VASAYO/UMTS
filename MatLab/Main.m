@@ -1,7 +1,7 @@
 % Очистка динамической памяти и Command Window
     clc;
     clear;
-    % close all;
+    close all;
     
 % Добавление путей
     path([cd, '\Signals'], path);
@@ -10,7 +10,7 @@
     
 % Загрузка массива Signal с записью сигнала    
     % Beeline Megafon Megafon5 Megafon99 Megafon99_01 MTS   
-    load('MTS');    % В кавычках указывается имя файла из
+    load('Beeline');    % В кавычках указывается имя файла из
                     % которого будет считана запись сигнала
          
 % Согласованная фильтрация сигнала    
@@ -45,6 +45,9 @@
             %     BCCHs{k, 1} = BCCH;
         end
     end
+
+% Сообщение о завершении работы
+    fprintf('%s Обработка завершена.\n', datestr(now));
     
 % Удаление путей
 %     rmpath([cd, '\Signals']);
