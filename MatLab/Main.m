@@ -10,8 +10,8 @@
     
 % Загрузка массива Signal с записью сигнала    
     % Beeline Megafon Megafon5 Megafon99 Megafon99_01 MTS   
-    load('MTS'); % В кавычках указывается имя файла из
-        % которого будет считана запись сигнала
+    load('MTS');    % В кавычках указывается имя файла из
+                    % которого будет считана запись сигнала
          
 % Согласованная фильтрация сигнала    
     df = 0; % Пока что нет оснований выбрать другое значение частотной 
@@ -28,7 +28,7 @@
         for k = 1:1 %length(Slots_Offsets) % Для каждой БС
             % Кадровая синхронизация    
                 [Frame_Offset, SG] = Frame_Synchronization(FSignal, ...
-                    Slots_Offsets(1, k), true);
+                    Slots_Offsets(1, k), false);
             % % Определение номера скремблирующей последовательности    
             %     SC_Num = Scrambling_Code_Determination(FSignal, ...
             %         Frame_Offset, SG, true);
