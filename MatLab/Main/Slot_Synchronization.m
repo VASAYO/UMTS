@@ -17,8 +17,13 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
         CorrPeriod = 5120;
     % Число слотов, используемых для накопления
         AccumulationSize = 15;
-    % Ширина окрестности максимума, которая будет занулена. Чётное число
+    % Ширина окрестности максимума, которая будет занулена (отсчёты слева +
+    % отсчёты справа). Д.б. чётным числом
         OmitWidth = 38*2;
+    % Максимальное число обрабатываемых базовых станций
+        MaxBS = 8;
+    % Порог в единицах среднего значения результата накопления
+        Threshold = 3;
 
 % Генерация синхропоследовательности
     PSP = Generate_Primary_Synchronisation_Code;
@@ -51,17 +56,16 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
             conv(ShapedSignal(:, i), fliplr(conj(PSPZeros)).', "valid");
     end
 
-% Когерентное накопление результата
+% Когерентное накопление и нормировка результата на среднее значение
     KoherentRes = abs(sum(CorrRes2, 2));
-
-% Определяем порог различения базовых станций от шума
-    Threshold = quantile(KoherentRes, 0.993);
+    KoherentRes = KoherentRes / mean(KoherentRes);
 
 % Обрабатываем все корреляционные максимумы, превышающие порог
     Slots_Offsets = [];
     Processing = KoherentRes;
+    foundBS = 0;
 
-    while sum(Processing >= Threshold) > 0
+    while (sum(Processing >= Threshold) > 0) && (foundBS < MaxBS)
         % Выбор самого высокого максимума
             [~, Slots_Offsets(end+1)] = max(Processing);
             
@@ -79,6 +83,8 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
                 end
 
             Processing(Pos1:Pos2) = 0;
+
+        foundBS = foundBS + 1;
     end
 
 % Прорисовка результата накопления
@@ -89,11 +95,12 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
         title('Когерентное накопление');
     end
 
-% - Ограничение количества обнаруженных базовых станций;
+% - Ограничение количества обнаруженных базовых станций. Максимальная число
+%   обнаруженных базовых станций: 7-8  [done];
 % - Нормировка корреляционной кривой на ср. значение и порог в единицах ср. 
-%   значения;
-% - Максимальная число обн. базовых станций: 7-8;
-% - Ассиметричное зануление (20+1+40);
+%   значения [done];
+% - Ассиметричное зануление окрестностей максимума (20+1+40);
 
 % Домашнее задание:
-%   - Исследовать зависимость порога от вероятности ложной тревоги;
+%   - Исследовать зависимость порога от вероятности ложной тревоги 
+%   [MatLab\Main\FalseAlarm.m];
