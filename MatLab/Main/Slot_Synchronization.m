@@ -23,7 +23,7 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
     % Максимальное число обрабатываемых базовых станций
         MaxBS = 8;
     % Порог в единицах среднего значения результата накопления
-        Threshold = 3;
+        Threshold = 3.8; % Соответствует Pлт = 1e-5;
 
 % Генерация синхропоследовательности
     PSP = Generate_Primary_Synchronisation_Code;
