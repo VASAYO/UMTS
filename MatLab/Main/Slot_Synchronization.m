@@ -17,6 +17,10 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
         CorrPeriod = 5120;
     % Число слотов, используемых для накопления
         AccumulationSize = 15;
+    % Выбор вида накопления:
+    %   1 - когерентное;
+    %   0 - некогерентное;
+        UseKoherentAccumulation = 1;
     % Ширина окрестности максимума, которая будет занулена (отсчёты слева +
     % отсчёты справа). Д.б. чётным числом
         OmitWidth = 38*2;
@@ -30,15 +34,6 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
     PSPZeros = upsample(PSP, 2);
     PSPZeros = PSPZeros(1:end-1);
     PSPZerosLen = length(PSPZeros);
-
-% Корреляция сигнала с ПСП
-    CorrRes = conv(FSignal, fliplr(conj(PSPZeros)), "valid");
-
-% Прорисовка результата корреляции
-    if Flag_Draw 
-        plot(abs(CorrRes)); grid on;
-        title('Корреляция сигнала с ПСП');
-    end
 
 % Шейпинг сигнала для накопления
     ShapedSignal = zeros(CorrPeriod+PSPZerosLen-1, AccumulationSize);
@@ -56,13 +51,19 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
             conv(ShapedSignal(:, i), fliplr(conj(PSPZeros)).', "valid");
     end
 
-% Когерентное накопление и нормировка результата на среднее значение
-    KoherentRes = abs(sum(CorrRes2, 2));
-    KoherentRes = KoherentRes / mean(KoherentRes);
+% Накопление результата
+    if UseKoherentAccumulation
+        AccumRes = abs(sum(CorrRes2, 2)); % Когерентное
+    else
+        AccumRes = sum(abs(CorrRes2), 2); % Некогерентное
+    end
+
+% Нормировка на среднее значение
+    AccumRes = AccumRes / mean(AccumRes);
 
 % Обрабатываем корреляционные максимумы, превышающие порог
     Slots_Offsets = [];
-    Processing = KoherentRes;
+    Processing = AccumRes;
     foundBS = 0;
 
     while (sum(Processing >= Threshold) > 0) && (foundBS < MaxBS)
@@ -90,9 +91,16 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
 % Прорисовка результата накопления
     if Flag_Draw 
         figure;
-        plot(KoherentRes); grid on;
-        yline(Threshold)
-        title('Когерентное накопление');
+        plot(AccumRes); grid on;
+        xlim([1 5120])
+        yline(Threshold);
+
+        if UseKoherentAccumulation
+            title('Когерентное накопление');
+        else
+            title('Некогерентное накопление');
+            ylim([min(AccumRes), +inf]);
+        end
     end
 
 % - Ограничение количества обнаруженных базовых станций. Максимальная число
