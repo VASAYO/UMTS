@@ -35,7 +35,7 @@ Slot_Offset, Flag_Draw)
     for rx_idx = 1:15
         for ref_idx = 1:16
             CorrVals(rx_idx, ref_idx) = ...
-                sum(SSCSamples(rx_idx, :) .* SSC(ref_idx, :));
+                sum(SSCSamples(rx_idx, :) .* conj(SSC(ref_idx, :)));
         end
     end
     clear ref_idx rx_idx;
@@ -47,16 +47,16 @@ Slot_Offset, Flag_Draw)
                              % циклическим сдвигам
                              % соответствующей скр-щей группы (0..14)
 
-    for scr_idx = 1:64 % Цикл по номерам скрэмблирующих групп
+    for scr_idx = 0:63 % Цикл по номерам скрэмблирующих групп
         for sht_idx = 0:14 % Цикл по циклическим сдвигам
 
             % Текущия скр-я группа с цикл. сдвигом
-                Scr_sht = circshift(ScrTable(scr_idx, :), sht_idx);
+                Scr_sht = circshift(ScrTable(scr_idx +1, :), sht_idx);
 
             % Вычисление метрики
                 for sum_idx = 1:15
-                    Metrics(scr_idx, sht_idx+1) = ...
-                        Metrics(scr_idx, sht_idx+1) ...
+                    Metrics(scr_idx +1, sht_idx +1) = ...
+                        Metrics(scr_idx +1, sht_idx +1) ...
                                     + ...
                         CorrVals(sum_idx, Scr_sht(sum_idx));
                 end
@@ -83,7 +83,7 @@ Slot_Offset, Flag_Draw)
 
         % Подписи
             title({'Корреляционные метрики для', ...
-                ['Slot\_Offset = ', num2str(Slot_Offset), '.']} ...
+                ['Slot\_Offset = ', num2str(Slot_Offset)]} ...
             );
             xlabel('Циклический сдвиг');
             ylabel('Номер скрэмблирующей группы');
