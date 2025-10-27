@@ -26,7 +26,7 @@ Slot_Offset, Flag_Draw)
 
     for i = 1:15
         SSCSamples(i, :) = ...
-            FSignal((1:2:2*256)-1 + Slot_Offset + (i-1)*5120);
+            FSignal((1:2:2*256) + Slot_Offset + (i-1)*5120);
     end
 
 % Корреляция каждой из 15 принятых последовательностей с 16 эталонными

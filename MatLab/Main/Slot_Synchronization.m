@@ -88,9 +88,15 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
         foundBS = foundBS + 1;
     end
 
+% Вычитаем 1 из всех элементов результирующего массива чтобы получить
+% корректный результат (т.е. сколько первых отсчётов сигнала надо 
+% пропустить, чтобы синхронизироваться со слотами той или иной базовой 
+% станции)
+    Slots_Offsets = Slots_Offsets - 1;
+
 % Прорисовка результата накопления
     if Flag_Draw 
-        figure;
+        figure(Name='Slot_Synchronization.m');
         plot(AccumRes); grid on;
         xlim([1 5120])
         yline(Threshold);
