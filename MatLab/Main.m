@@ -10,7 +10,7 @@
     
 % Загрузка массива Signal с записью сигнала    
     % Beeline Megafon Megafon5 Megafon99 Megafon99_01 MTS   
-    load('MTS');    % В кавычках указывается имя файла из
+    load('Beeline');    % В кавычках указывается имя файла из
                     % которого будет считана запись сигнала
          
 % Согласованная фильтрация сигнала    
@@ -19,7 +19,7 @@
     FSignal = Matched_Filter(Signal(7:end), 0);
     
 % Слотовая синхронизация - поиск базовых станций (БС)
-    Slots_Offsets = Slot_Synchronization(FSignal, 1);
+    Slots_Offsets = Slot_Synchronization(FSignal, 0);
 % Для каждой найденной БС проводим следующие процедуры обработки
     if ~isempty(Slots_Offsets)
         % Создадим переменную для хранения транспортных блоков вещательного
@@ -28,10 +28,10 @@
         for k = 1:1 %length(Slots_Offsets) % Для каждой БС
             % Кадровая синхронизация    
                 [Frame_Offset, SG] = Frame_Synchronization(FSignal, ...
-                    Slots_Offsets(1, k), 1);
-            % % Определение номера скремблирующей последовательности    
-            %     SC_Num = Scrambling_Code_Determination(FSignal, ...
-            %         Frame_Offset, SG, true);
+                    Slots_Offsets(1, k), 0);
+            % Определение номера скремблирующей последовательности    
+                SC_Num = Scrambling_Code_Determination(FSignal, ...
+                    Frame_Offset, SG, true);
             % % Построение rake-шаблона
             %     Rake_Pattern = Rake_Pattern_Calculation(Signal, ...
             %         FSignal, Frame_Offset, SC_Num, true);
