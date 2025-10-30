@@ -17,9 +17,10 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
         SlotLen = 5120;
     % Число слотов, используемых для накопления
         AccumulateSlots = 15;
-    % Ширина окрестности максимума, которая будет занулена (отсчёты слева +
-    % отсчёты справа). Д.б. чётным числом
-        OmitWidth = 38*2;
+    % Число отсчётов, которые будут занулены слева и справа от
+    % корреляционного максимума при обнаружении базовой станции
+        OmitLeft = 38;
+        OmitRight = 38;
     % Максимальное число обрабатываемых базовых станций
         MaxBS = 8;
     % Порог в единицах среднего значения результата накопления
@@ -31,24 +32,17 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
     PSPZeros = PSPZeros(1:end-1);
     PSPZerosLen = length(PSPZeros);
 
+% Выбор отсчётов сигнала для корреляции
+    CorrSignal = FSignal(1:SlotLen*AccumulateSlots + PSPZerosLen-1);
+
+% Корреляция с синхропоследовательностью
+    CorrRes = conv(CorrSignal, fliplr(conj(PSPZeros)), "valid");
+
 % Шейпинг сигнала для накопления
-    ShapedSignal = zeros(SlotLen+PSPZerosLen-1, AccumulateSlots);
+    CorrResShaped = reshape(CorrRes, SlotLen, AccumulateSlots);
 
-    for i = 1:AccumulateSlots
-        ShapedSignal(:, i) = ...
-            FSignal((1:SlotLen+PSPZerosLen-1) + (i-1)*SlotLen).';
-    end
-
-% Кореляции с синхропоследовательностью
-    CorrRes2 = zeros(SlotLen, AccumulateSlots);
-
-    for i = 1:AccumulateSlots
-        CorrRes2(:, i) = ...
-            conv(ShapedSignal(:, i), fliplr(conj(PSPZeros)).', "valid");
-    end
-
-% Накопление результата
-    AccumRes = abs(sum(CorrRes2, 2)); % Когерентное
+% Когерентное накопление результата
+    AccumRes = abs(sum(CorrResShaped, 2));
 
 % Нормировка на среднее значение
     AccumRes = AccumRes / mean(AccumRes);
@@ -64,15 +58,15 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
             
         % Зануление выбранного максимума и его окрестностей
             % Определение границ зоны зануления
-                if Slots_Offsets(end) - OmitWidth/2 < 1
+                if Slots_Offsets(end) - OmitLeft/2 < 1
                     Pos1 = 1;
                 else 
-                    Pos1 = Slots_Offsets(end) - OmitWidth/2;
+                    Pos1 = Slots_Offsets(end) - OmitLeft/2;
                 end
-                if Slots_Offsets(end) + OmitWidth/2 > SlotLen
+                if Slots_Offsets(end) + OmitRight/2 > SlotLen
                     Pos2 = SlotLen;
                 else 
-                    Pos2 = Slots_Offsets(end) + OmitWidth/2;
+                    Pos2 = Slots_Offsets(end) + OmitRight/2;
                 end
 
             Processing(Pos1:Pos2) = 0;
