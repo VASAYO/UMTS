@@ -13,14 +13,10 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
 %                   найденных сигналов базовых станций.
 
 % Параметры 
-    % Период корреляционных максимумов в отсчётах
-        CorrPeriod = 5120;
+    % Длительность слота в отсчётах
+        SlotLen = 5120;
     % Число слотов, используемых для накопления
-        AccumulationSize = 15;
-    % Выбор вида накопления:
-    %   1 - когерентное;
-    %   0 - некогерентное;
-        UseKoherentAccumulation = 1;
+        AccumulateSlots = 15;
     % Ширина окрестности максимума, которая будет занулена (отсчёты слева +
     % отсчёты справа). Д.б. чётным числом
         OmitWidth = 38*2;
@@ -29,34 +25,30 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
     % Порог в единицах среднего значения результата накопления
         Threshold = 3.8; % Соответствует Pлт = 1e-5;
 
-% Генерация синхропоследовательности
+% Генерация синхропоследовательности и добавление нулей
     PSP = Generate_Primary_Synchronisation_Code;
     PSPZeros = upsample(PSP, 2);
     PSPZeros = PSPZeros(1:end-1);
     PSPZerosLen = length(PSPZeros);
 
 % Шейпинг сигнала для накопления
-    ShapedSignal = zeros(CorrPeriod+PSPZerosLen-1, AccumulationSize);
+    ShapedSignal = zeros(SlotLen+PSPZerosLen-1, AccumulateSlots);
 
-    for i = 1:AccumulationSize
+    for i = 1:AccumulateSlots
         ShapedSignal(:, i) = ...
-            FSignal((1:CorrPeriod+PSPZerosLen-1) + (i-1)*CorrPeriod).';
+            FSignal((1:SlotLen+PSPZerosLen-1) + (i-1)*SlotLen).';
     end
 
 % Кореляции с синхропоследовательностью
-    CorrRes2 = zeros(CorrPeriod, AccumulationSize);
+    CorrRes2 = zeros(SlotLen, AccumulateSlots);
 
-    for i = 1:AccumulationSize
+    for i = 1:AccumulateSlots
         CorrRes2(:, i) = ...
             conv(ShapedSignal(:, i), fliplr(conj(PSPZeros)).', "valid");
     end
 
 % Накопление результата
-    if UseKoherentAccumulation
-        AccumRes = abs(sum(CorrRes2, 2)); % Когерентное
-    else
-        AccumRes = sum(abs(CorrRes2), 2); % Некогерентное
-    end
+    AccumRes = abs(sum(CorrRes2, 2)); % Когерентное
 
 % Нормировка на среднее значение
     AccumRes = AccumRes / mean(AccumRes);
@@ -77,8 +69,8 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
                 else 
                     Pos1 = Slots_Offsets(end) - OmitWidth/2;
                 end
-                if Slots_Offsets(end) + OmitWidth/2 > CorrPeriod
-                    Pos2 = CorrPeriod;
+                if Slots_Offsets(end) + OmitWidth/2 > SlotLen
+                    Pos2 = SlotLen;
                 else 
                     Pos2 = Slots_Offsets(end) + OmitWidth/2;
                 end
@@ -100,13 +92,7 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
         plot(AccumRes); grid on;
         xlim([1 5120])
         yline(Threshold);
-
-        if UseKoherentAccumulation
-            title('Когерентное накопление');
-        else
-            title('Некогерентное накопление');
-            ylim([min(AccumRes), +inf]);
-        end
+        title('Когерентное накопление');
     end
 
 % - Ограничение количества обнаруженных базовых станций. Максимальная число
