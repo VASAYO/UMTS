@@ -11,64 +11,59 @@ function SC_Num = Scrambling_Code_Determination(FSignal, ...
 % Выходные переменные:
 %   SC_Num – номер скремблирующей последовательности.
 
-% Генерация скрэмблирующих кодов по указанной скрэмблирующей
-% последовательности
-    ScrCodes = zeros(8, 38400);
+% Число чипов в одном кадре
+    ChipsPerFrame = 38400;
 
 % Генерация каналообразующего кода
     ChCode = Generate_Channelisation_Code(256, 0);
 
+% Генерация 8 скрэмблирующих последовательностей, соответствующих данной
+% скрэмблирующей группе
+    ScrCodes = zeros(8, 38400);
     for k = 0:7
         % Определение аргумента функции
-            n = 16*8*SG + 16 * k;
-            n = n/16;
+            n = 8*SG + k;
 
         ScrCodes(k +1, :) = Generate_Scrambling_Code(n);
     end
 
-% Выделение из сигнала отсчётов кадра
-    FrameSamples = FSignal((1:38400*2) + Frame_Offset);
+% Выбор из сигнала чипов кадра
+    FrameChips = FSignal((1:2:ChipsPerFrame*2)-1 + Frame_Offset);
 
-% Прореживание отсчётов кадра
-    FrameChips = FrameSamples(1:2:end);
-
-% Цикл по 8 скр. последовательностям
-    Metrics = zeros(150, 8); 
+% Цикл по 8 скрэмблирующим последовательностям
+    Metrics = zeros(8, 150); % Строки матрицы - массивы вычисленных 
+                             % модуляционных символов с использованием
+                             % соответствующих номеров скрэмблирующих
+                             % последовательностей (8*SG, .., 8*SG+7)
 
     for ScrIdx = 1:8
         % Дескрэмблирование 
-            FrameDeScr = FrameChips .* conj(ScrCodes(ScrIdx, :)) / sqrt(2);
+            ChipsDeScr = FrameChips .* conj(ScrCodes(ScrIdx, :)) / sqrt(2);
 
-        % Разделение по 256 чипов. Строчки - принятые расширенные 
-        % модуляционные символы
-            SymbolsSF = reshape(FrameDeScr, 256, 150).';
+        % Разделение по 256 чипов. Столбцы - расширенные каналообразующим 
+        % кодом модуляционные символы
+            SymbolsSF = reshape(ChipsDeScr, 256, 150);
 
-        for SymIdx = 1:150
-            Metrics(SymIdx, ScrIdx) = ...
-                sum(SymbolsSF(SymIdx, :) .* ChCode);
+        for SymIdx = 1:150 % Цикл по дерасширению модуляционных символов 
+                           % пилот-канала
+            Metrics(ScrIdx, SymIdx) = ...
+                sum(SymbolsSF(:, SymIdx) .* ChCode.');
         end
     end
 
-% Некогерентное накопление
-    MetricsAcc = sum(abs(Metrics), 1);
+% Некогерентное накопление для различных скр-щих последовательностей
+    MetricsAcc = sum(abs(Metrics), 2);
 
 % Определение номера скрэмблирующей последовательности
     [~, ind] = max(MetricsAcc);
     ind = ind -1;
-    SC_Num = 16*8*SG + 16 * ind;
-    SC_Num = SC_Num/16;
+    SC_Num = 8*SG + ind;
 
 % Прорисовка результатов
     if Flag_Draw
         figure(Name='Scrambling_Code_Determination.m');
-        stem(0:7, MetricsAcc);
+        stem(8*SG+(0:7), MetricsAcc);
+        xlabel('Номер скрэмблирующей последовательности');
+        ylabel('Результирующая метрика');
         grid on;
     end
-
-% Домашнее задание:
-%   - Провести моделирование для исследования методов оценки частотной
-%   отстройки.
-% 
-% Параметры: 
-%   - ОСШ
-%   - Кол-во векторов и тд.

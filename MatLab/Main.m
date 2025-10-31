@@ -1,7 +1,7 @@
 % Очистка динамической памяти и Command Window
     clc;
     clear;
-    % close all;
+    close all;
     
 % Добавление путей
     path([cd, '\Signals'], path);
@@ -17,23 +17,29 @@
     df = 0; % Пока что нет оснований выбрать другое значение частотной 
             % отстройки
     FSignal = Matched_Filter(Signal(7:end), 0);
+
 % Слотовая синхронизация - поиск базовых станций (БС)
     Slots_Offsets = Slot_Synchronization(FSignal, 0);
+    
 % Для каждой найденной БС проводим следующие процедуры обработки
     if ~isempty(Slots_Offsets)
         % Создадим переменную для хранения транспортных блоков вещательного
         % канала найденных БС
             BCCHs = cell(length(Slots_Offsets), 1);
-        for k = 1:length(Slots_Offsets) % Для каждой БС
+
+        for k = 1:1 %length(Slots_Offsets) % Для каждой БС
             % Кадровая синхронизация    
                 [Frame_Offset, SG] = Frame_Synchronization(FSignal, ...
                     Slots_Offsets(1, k), 0);
+
             % Определение номера скремблирующей последовательности    
                 SC_Num = Scrambling_Code_Determination(FSignal, ...
                     Frame_Offset, SG, 0);
+
             % Построение rake-шаблона
                 Rake_Pattern = Rake_Pattern_Calculation(Signal, ...
-                    FSignal, Frame_Offset, SC_Num, true);
+                    FSignal, Frame_Offset, SC_Num, 0);
+
             % % Демодуляция вещательного канала
             %     PCCPCH_Bits = One_Ray_PCCPCH_Demodulation(Signal, ...
             %         Rake_Pattern, Frame_Offset, SC_Num, true);

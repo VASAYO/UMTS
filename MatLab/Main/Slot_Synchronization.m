@@ -16,9 +16,9 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
     % Длительность слота в отсчётах
         SlotLen = 5120;
     % Число слотов, используемых для накопления
-        AccumulateSlots = 15;
-    % Число отсчётов, которые будут занулены слева и справа от
-    % корреляционного максимума при обнаружении базовой станции
+        AccumSlots = 15;
+    % Число отсчётов, зануляемых слева и справа от корреляционного
+    % максимума при обнаружении базовой станции
         OmitLeft = 38;
         OmitRight = 38;
     % Максимальное число обрабатываемых базовых станций
@@ -26,23 +26,23 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
     % Порог в единицах среднего значения результата накопления
         Threshold = 3.8; % Соответствует Pлт = 1e-5;
 
-% Генерация синхропоследовательности и добавление нулей
+% Генерация синхропоследовательности и вставка нулей
     PSP = Generate_Primary_Synchronisation_Code;
-    PSPZeros = upsample(PSP, 2);
-    PSPZeros = PSPZeros(1:end-1);
-    PSPZerosLen = length(PSPZeros);
+    PSPUp = upsample(PSP, 2);
+    PSPUp = PSPUp(1:end-1);
+    PSPUpLen = length(PSPUp);
 
-% Выбор отсчётов сигнала для корреляции
-    CorrSignal = FSignal(1:SlotLen*AccumulateSlots + PSPZerosLen-1);
+% Подготовка сигнала перед корреляцией с PSPUp
+    CorrSignal = FSignal(1:AccumSlots*SlotLen + PSPUpLen-1);
 
-% Корреляция с синхропоследовательностью
-    CorrRes = conv(CorrSignal, fliplr(conj(PSPZeros)), "valid");
+% Корреляция с PSPUp
+    CorrRes = conv(CorrSignal, fliplr(conj(PSPUp)), "valid");
 
 % Шейпинг сигнала для накопления
-    CorrResShaped = reshape(CorrRes, SlotLen, AccumulateSlots);
+    CorrShaped = reshape(CorrRes, SlotLen, AccumSlots);
 
 % Когерентное накопление результата
-    AccumRes = abs(sum(CorrResShaped, 2));
+    AccumRes = abs(sum(CorrShaped, 2));
 
 % Нормировка на среднее значение
     AccumRes = AccumRes / mean(AccumRes);
@@ -58,15 +58,15 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
             
         % Зануление выбранного максимума и его окрестностей
             % Определение границ зоны зануления
-                if Slots_Offsets(end) - OmitLeft/2 < 1
+                if Slots_Offsets(end) - OmitLeft < 1
                     Pos1 = 1;
                 else 
-                    Pos1 = Slots_Offsets(end) - OmitLeft/2;
+                    Pos1 = Slots_Offsets(end) - OmitLeft;
                 end
-                if Slots_Offsets(end) + OmitRight/2 > SlotLen
+                if Slots_Offsets(end) + OmitRight > SlotLen
                     Pos2 = SlotLen;
                 else 
-                    Pos2 = Slots_Offsets(end) + OmitRight/2;
+                    Pos2 = Slots_Offsets(end) + OmitRight;
                 end
 
             Processing(Pos1:Pos2) = 0;
@@ -74,16 +74,12 @@ function Slots_Offsets = Slot_Synchronization(FSignal, Flag_Draw)
         foundBS = foundBS + 1;
     end
 
-% Вычитаем 1 из всех элементов результирующего массива чтобы получить
-% корректный результат (т.е. сколько первых отсчётов сигнала надо 
-% пропустить, чтобы синхронизироваться со слотами той или иной базовой 
-% станции)
-    Slots_Offsets = Slots_Offsets - 1;
-
 % Прорисовка результата накопления
     if Flag_Draw 
         figure(Name='Slot_Synchronization.m');
         plot(AccumRes); grid on;
+        xlabel('Сдвиг');
+        xlabel('Результат накопления');
         xlim([1 5120])
         yline(Threshold);
         title('Когерентное накопление');

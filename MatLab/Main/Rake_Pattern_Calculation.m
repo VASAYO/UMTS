@@ -16,7 +16,8 @@ Frame_Offset, SC_Num, Flag_Draw)
 % Выходные переменные:      
 %   Rake_Pattern - rake-шаблона, структура, содержащая два поля данных: 
 %     Correl     - значения КФ пилотного канала       для разных лучей; 
-%     dfs        - значения оценок частотных отстроек для разных лучей. 
+%     dfs        - значения оценок частотных отстроек для разных лучей в 
+%                  единицах чиповой скорости. 
 
 % Массив со смещением до лучей
     RayOffsets = Frame_Offset + (-38:38);
@@ -33,7 +34,7 @@ Frame_Offset, SC_Num, Flag_Draw)
 % Цикл по лучам
     for RayIdx = 1:length(Rake_Pattern.Correl)
         % Выбор чипов кадра
-            FrameChips = FSignal((1:2:38400*2)+RayOffsets(RayIdx));
+            FrameChips = FSignal((1:2:38400*2)-1 + RayOffsets(RayIdx));
 
         % Дескрэмблирование
             FrameChipsDeScr = FrameChips .* conj(ScrCode) / sqrt(2);
@@ -71,6 +72,14 @@ Frame_Offset, SC_Num, Flag_Draw)
 % Прорисовка результата
     if Flag_Draw
         figure(Name='Rake_Pattern_Calculation.m');
-        plot(RayOffsets, Rake_Pattern.Correl);
+        plot(-38:38, Rake_Pattern.Correl);
         grid on;
     end
+
+
+% Домашнее задание:
+%   - Сравнить методы оценки частотной отстройки при помощи моделирования;
+%   [MatLab\Main\FrequencyDriftEstimation.m];
+%   [MatLab\Main\dfEstimateResults.png];
+%   - Определить подходящий алгоритм оценки частотной отстройки, дописать
+%   функцию.
