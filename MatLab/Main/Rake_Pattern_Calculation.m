@@ -75,3 +75,11 @@ Frame_Offset, SC_Num, Flag_Draw)
         plot(-38:38, Rake_Pattern.Correl);
         grid on;
     end
+
+
+% Домашнее задание:
+%   - Сравнить методы оценки частотной отстройки при помощи моделирования;
+%   [MatLab\Main\FrequencyDriftEstimation.m];
+%   [MatLab\Main\dfEstimateResults.png];
+%   - Определить подходящий алгоритм оценки частотной отстройки, дописать
+%   функцию.
