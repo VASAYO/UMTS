@@ -33,7 +33,7 @@ Frame_Offset, SC_Num, Flag_Draw)
 % Цикл по лучам
     for RayIdx = 1:length(Rake_Pattern.Correl)
         % Выбор чипов кадра
-            FrameChips = FSignal((1:2:38400*2)+RayOffsets(RayIdx));
+            FrameChips = FSignal((1:2:38400*2)-1 + RayOffsets(RayIdx));
 
         % Дескрэмблирование
             FrameChipsDeScr = FrameChips .* conj(ScrCode) / sqrt(2);
@@ -71,6 +71,6 @@ Frame_Offset, SC_Num, Flag_Draw)
 % Прорисовка результата
     if Flag_Draw
         figure(Name='Rake_Pattern_Calculation.m');
-        plot(RayOffsets, Rake_Pattern.Correl);
+        plot(-38:38, Rake_Pattern.Correl);
         grid on;
     end
