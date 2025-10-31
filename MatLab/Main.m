@@ -31,12 +31,15 @@
             % Кадровая синхронизация    
                 [Frame_Offset, SG] = Frame_Synchronization(FSignal, ...
                     Slots_Offsets(1, k), 0);
+
             % Определение номера скремблирующей последовательности    
                 SC_Num = Scrambling_Code_Determination(FSignal, ...
                     Frame_Offset, SG, 0);
+
             % Построение rake-шаблона
                 Rake_Pattern = Rake_Pattern_Calculation(Signal, ...
                     FSignal, Frame_Offset, SC_Num, 0);
+
             % % Демодуляция вещательного канала
             %     PCCPCH_Bits = One_Ray_PCCPCH_Demodulation(Signal, ...
             %         Rake_Pattern, Frame_Offset, SC_Num, true);
