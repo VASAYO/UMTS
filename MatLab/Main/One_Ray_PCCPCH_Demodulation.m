@@ -97,3 +97,19 @@ Rake_Pattern, Frame_Offset, SC_Num, Flag_Draw)
             end
         end
     end
+
+% Прорисовка результатов
+    if Flag_Draw
+        figure(Name='One_Ray_PCCPCH_Demodulation.m');
+        subplot(2,2,1);
+        plot(SymbolsCPICH(:), '.');
+        title('Символы пилот-канала');
+
+        subplot(2,2,2);
+        plot(SymbolsPCCPCH(:), '.');
+        title('Символы вещательного канала');
+
+        subplot(2,2,3);
+        plot(SymbolsPCCPCHEq(:), '.');
+        title({'Символы вещательного канала ','после эквалайзинга'});
+    end
