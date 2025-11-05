@@ -65,7 +65,7 @@ Rake_Pattern, Frame_Offset, SC_Num, Flag_Draw)
         for SlotIdx = 1:SlotsPerFrame % Цикл по слотам обрабатываемого 
                                       % кадра
             % Выделение чипов текущего слота
-                SlotChips = FrameChips((1:2560) + (SlotIdx-1)*2560);
+                SlotChips = FrameChipsDeScr((1:2560) + (SlotIdx-1)*2560);
             % Удаление 256 первых чипов слота, в течение которых данные не
             % передаются
                 PCCPCHChips = SlotChips(256+1:end);
@@ -97,5 +97,3 @@ Rake_Pattern, Frame_Offset, SC_Num, Flag_Draw)
             end
         end
     end
-
-1;
