@@ -103,13 +103,16 @@ Rake_Pattern, Frame_Offset, SC_Num, Flag_Draw)
         figure(Name='One_Ray_PCCPCH_Demodulation.m');
         subplot(2,2,1);
         plot(SymbolsCPICH(:), '.');
+        grid on; axis equal;
         title('Символы пилот-канала');
 
         subplot(2,2,2);
         plot(SymbolsPCCPCH(:), '.');
+        grid on; axis equal;
         title('Символы вещательного канала');
 
         subplot(2,2,3);
         plot(SymbolsPCCPCHEq(:), '.');
+        grid on; axis equal;
         title({'Символы вещательного канала ','после эквалайзинга'});
     end
