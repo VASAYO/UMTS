@@ -48,6 +48,12 @@ Rake_Pattern, Frame_Offset, SC_Num, Flag_Draw)
 % Инициализация результата
     PCCPCH_Bits = zeros(1, BitsPerFrame*NumFrames);
 
+% Массив модуляционных символов пилот-канала, канала управления до и после
+% эквалайзинга
+    SymbolsCPICH    = zeros(9, 15, NumFrames);
+    SymbolsPCCPCH   = zeros(9, 15, NumFrames);
+    SymbolsPCCPCHEq = zeros(9, 15, NumFrames);
+
 % Покадровая обработка PCCPCH
     for FrIdx = 1:NumFrames % Цикл по кадрам
         % Выбор чипов текущего кадра
@@ -70,14 +76,17 @@ Rake_Pattern, Frame_Offset, SC_Num, Flag_Draw)
 
                 % Дерасширение символа пилот-канала
                     PilotSymb = sum(SymbChips .* ChCodeCPICH);
+                    SymbolsCPICH(SymbIdx, SlotIdx, FrIdx) = PilotSymb;
                 % Дерасширение символа PCCPCH
                     PCCPCHSymb = sum(SymbChips .* ChCodePCCPCH);
+                    SymbolsPCCPCH(SymbIdx, SlotIdx, FrIdx) = PCCPCHSymb;
 
                 % Оценка канала
                     mu = PilotSymb / (1+1j);
 
                 % Эквалайзинг
                     PCCPCHSymbEq = PCCPCHSymb / mu;
+                    SymbolsPCCPCHEq(SymbIdx, SlotIdx, FrIdx) = PCCPCHSymbEq;
 
                 % Демодуляция символа   
                     Bits = pskdemod(PCCPCHSymbEq, 4, pi/4, "gray", ...
