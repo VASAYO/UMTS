@@ -19,82 +19,92 @@ Rake_Pattern, Frame_Offset, SC_Num, Flag_Draw)
 %   PCCPCH_Bits - массив-строка (длина кратна 270), содержащий значения 
 %                 бит всех кадров канала PCCPCH, считанных из Signal. 
 
-% 1. Цикл по кадрам;
-% 2. Внутри цикла: дескр-ние, дерасширение для пилота и для вещательного
-%    канала. 
-% 3. Получаем 135 * Nкадров мод-ных символов для вскх базовых станций;
-% 4. Работаем по главному лучу.
+% Параметры и константы
+    % Длина кадра в отсчётах сигнала
+        SamplesPerFrame = 5120 * 15;
+    % Длина кадра в чипах
+        ChipsPerFrame = 2560 * 15;
+    % Длина слота в чипах
+        ChipsPerSlot = 2560;
+    % Число модуляционных символов канала управления в одном слоте
+        PCCPCHSymbolsPerSlot = 9;
+    % Число слотов в одном кадре
+        SlotsPerFrame = 15;
+    % Число бит канала управления в одном кадре
+        BitsPerFrame = 270;
+    % Коэффициент расширения
+        SF = 256;
 
-% Генерация скр-щей последовательности
-    ScrCode = Generate_Scrambling_Code(SC_Num) / sqrt(2);
-% Генерация каналообразующего кода общего пилот канала
-    ChCodeCPICH  = Generate_Channelisation_Code(256, 0);
-% Генерация каналообразующего кода P-CCPCH
-    ChCodePCCPCH = Generate_Channelisation_Code(256, 1);
-
-% Число слотов в одном кадре 
-    SlotsPerFrame = 15;
-% Длина кадра в отсчётах сигнала с выхода СФ
-    FrameLen = 2560*SlotsPerFrame * 2;
-% Число бит в одном кадре канала PCCPCH
-    BitsPerFrame = 270;
+    % Скрэмблирующая последовательность
+        ScrCode = Generate_Scrambling_Code(SC_Num) / sqrt(2);
+    % Каналообразующие коды пилот-канала и канала управления
+        ChCodePilot = Generate_Channelisation_Code(256, 0);
+        ChCodeData  = Generate_Channelisation_Code(256, 1);
 
 % Согласованная фильтрация сигнала
     FSignal = Matched_Filter(Signal, 0);
 
-% Число кадров в записи
-    NumFrames = floor(length(FSignal(Frame_Offset:end)) / FrameLen);
+% Определение числа полных кадров, находящихся в записи
+    NumFrames = floor(length(FSignal(Frame_Offset:end)) / SamplesPerFrame);
 
-% Инициализация результата
-    PCCPCH_Bits = zeros(1, BitsPerFrame*NumFrames);
+% Выбор чипов из сигнала и разбиение по кадрам
+    Buf = FSignal((1:NumFrames*SamplesPerFrame)-1 + Frame_Offset);
+    Buf = Buf(1:2:end);
+    FramesChips = reshape(Buf, ChipsPerFrame, NumFrames);
 
-% Массив модуляционных символов пилот-канала, канала управления до и после
-% эквалайзинга
-    SymbolsCPICH    = zeros(9, 15, NumFrames);
-    SymbolsPCCPCH   = zeros(9, 15, NumFrames);
-    SymbolsPCCPCHEq = zeros(9, 15, NumFrames);
+% Покадровое дескрэмблирование
+    Buf = repmat(ScrCode.', [1 NumFrames]);
+    FrameChipsDeScr = FramesChips .* conj(Buf);
 
-% Покадровая обработка PCCPCH
+% Дерасширение сигнала
+    % Память под модуляционные символы пилот-канала
+        SymbolsPilot = zeros( ...
+            PCCPCHSymbolsPerSlot, SlotsPerFrame, NumFrames);
+    % Память под модуляционные символы канала управления
+        SymbolsData = zeros( ...
+            PCCPCHSymbolsPerSlot, SlotsPerFrame, NumFrames);
+
     for FrIdx = 1:NumFrames % Цикл по кадрам
-        % Выбор чипов текущего кадра
-            FrameChips = FSignal((1:2:38400*2)-1 + Frame_Offset + (FrIdx-1)*FrameLen);
+        % Выбор чипов кадра и разделение по слотам
+            Slots = reshape(FrameChipsDeScr(:, FrIdx), ...
+                ChipsPerSlot, SlotsPerFrame);
 
-        % Дескрэмблирование
-            FrameChipsDeScr = FrameChips .* conj(ScrCode);
+        % Удаление первых 256 чипов из каждого слота, так как в них не
+        % передаются данные общего канала управления
+            Slots = Slots(256+1:end, :);
 
-        for SlotIdx = 1:SlotsPerFrame % Цикл по слотам обрабатываемого 
-                                      % кадра
-            % Выделение чипов текущего слота
-                SlotChips = FrameChipsDeScr((1:2560) + (SlotIdx-1)*2560);
-            % Удаление 256 первых чипов слота, в течение которых данные не
-            % передаются
-                PCCPCHChips = SlotChips(256+1:end);
+        for SlIdx = 1:SlotsPerFrame % Цикл по слотам
+            % Разделение слота на группы по 256 чипов, соответствующие
+            % расширенным модуляционным символам
+                Chips = reshape(Slots(:, SlIdx), SF, []);
 
-            for SymbIdx = 1:9 % Цикл по символам PCCPCH текущего слота
-                % Выделение чипов текущего символа
-                    SymbChips = PCCPCHChips((1:256) + (SymbIdx-1)*256);
+            % Процедура дерасширения символов данного слота
+                SymbolsPilot(:, SlIdx, FrIdx) = (ChCodePilot * Chips).';
+                SymbolsData (:, SlIdx, FrIdx) = (ChCodeData  * Chips).';
+        end
+    end
 
-                % Дерасширение символа пилот-канала
-                    PilotSymb = sum(SymbChips .* ChCodeCPICH);
-                    SymbolsCPICH(SymbIdx, SlotIdx, FrIdx) = PilotSymb;
-                % Дерасширение символа PCCPCH
-                    PCCPCHSymb = sum(SymbChips .* ChCodePCCPCH);
-                    SymbolsPCCPCH(SymbIdx, SlotIdx, FrIdx) = PCCPCHSymb;
+% Оценка канала и эквалайзинг
+    % Оценка канала по символам пилот-канала
+        mu = SymbolsPilot ./ (1 + 1j);
 
-                % Оценка канала
-                    mu = PilotSymb / (1+1j);
+    % Эквалайзинг данных канала управления
+        SymbolsDataEq = SymbolsData ./ mu;
 
-                % Эквалайзинг
-                    PCCPCHSymbEq = PCCPCHSymb / mu;
-                    SymbolsPCCPCHEq(SymbIdx, SlotIdx, FrIdx) = PCCPCHSymbEq;
+% Демодуляция символов канала управления
+    Buf = SymbolsDataEq(:);
 
-                % Демодуляция символа   
-                    Bits = pskdemod(PCCPCHSymbEq, 4, pi/4, "gray", ...
-                        "OutputType","bit").';
-
-                % Запись результата в переменную
-                    PCCPCH_Bits((FrIdx-1)*270 + (SlotIdx-1)*18 + (SymbIdx-1)*2 + (1:2)) = Bits;
-            end
+    PCCPCH_Bits = nan(1, BitsPerFrame*NumFrames);
+    for k = 1:BitsPerFrame*NumFrames/2
+        if (real(Buf(k)) >= 0)
+            PCCPCH_Bits(2*(k -1) + 1) = 0;
+        else
+            PCCPCH_Bits(2*(k -1) + 1) = 1;
+        end
+        if (imag(Buf(k)) >= 0)
+            PCCPCH_Bits(2*k) = 0;
+        else
+            PCCPCH_Bits(2*k) = 1;
         end
     end
 
@@ -102,17 +112,17 @@ Rake_Pattern, Frame_Offset, SC_Num, Flag_Draw)
     if Flag_Draw
         figure(Name='One_Ray_PCCPCH_Demodulation.m');
         subplot(2,2,1);
-        plot(SymbolsCPICH(:), '.');
+        plot(SymbolsPilot(:), '.');
         grid on; axis equal;
         title('Символы пилот-канала');
 
         subplot(2,2,2);
-        plot(SymbolsPCCPCH(:), '.');
+        plot(SymbolsData(:), '.');
         grid on; axis equal;
-        title('Символы вещательного канала');
+        title('Символы канала управления');
 
-        subplot(2,2,3);
-        plot(SymbolsPCCPCHEq(:), '.');
+        subplot(2,2,[3 4]);
+        plot(SymbolsDataEq(:), '.');
         grid on; axis equal;
-        title({'Символы вещательного канала ','после эквалайзинга'});
+        title({'Символы канала управления','после эквалайзинга'});
     end

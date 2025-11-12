@@ -12,15 +12,6 @@ function [Flag_isOk, BCCH] = Decode_BCCH(Coded_BCCH)
 %   Flag_isOk - указывает на то, был ли успешно декодирован хотя бы один 
 %               транспортный блок BCCH.
 
-% Последовательность действий:
-%   1. Разбить на блоки по 270 бит;
-%   2. Каждый блок - деперемежение;
-%   3. Объединение деперемеженных блоков в блоки по 570 бит;
-%   4. Деперемежение получившихся блоков;
-%   5. Выравнивание скоростей
-%   6. Декодирование по алгоритму Витерби;
-%   7. Отбрасывание хвоста и проверка CRC.
-
 % Флаг, указывающий на то, сошлось ли CRC хотя бы для одного транспортного
 % блока
     isCRCCorrect = false;
@@ -29,7 +20,7 @@ function [Flag_isOk, BCCH] = Decode_BCCH(Coded_BCCH)
 % тех пор, пока не сойдется CRC
     Pos = 1;
 
-    while ~isCRCCorrect        
+    while 1%~isCRCCorrect        
         % Если обрабатывать больше нечего, то выводим флаг о неудаче
         % ...
 
@@ -37,7 +28,7 @@ function [Flag_isOk, BCCH] = Decode_BCCH(Coded_BCCH)
             CurrentBlock = Coded_BCCH((1:540) + (Pos-1)*270);
 
         % Разбиваем блок на менее крупные блоки по 270 бит
-            Blocks270 = reshape(CurrentBlock, 270, 2); % Блоки по 270 
+            Blocks270 = reshape(CurrentBlock, 270, 2); % Блоки по 270 бит
                                                        % расположены по 
                                                        % столбцам
        % Деперемежение блоков по 270
@@ -55,7 +46,7 @@ function [Flag_isOk, BCCH] = Decode_BCCH(Coded_BCCH)
             DecodedBlock = Convolutional_Decoder(Block540DeInt, 1);
 
         % Отбрасывание хвоста и проверка CRC
-            [isCRCCorrect, Buf] = Check_CRC(DecodedBlock(1:end-8), 16);
+            [isCRCCorrect, Buf] = Check_CRC(DecodedBlock, 16);
 
         % Если CRC не сошлось, увеличиваем позицию указателя и обрабатывам
         % следующий блок со смещением на 270 бит вперед
