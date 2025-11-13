@@ -10,7 +10,7 @@
     
 % Загрузка массива Signal с записью сигнала    
     % Beeline Megafon Megafon5 Megafon99 Megafon99_01 MTS   
-    load('Beeline');    % В кавычках указывается имя файла из
+    load('Megafon99_01');    % В кавычках указывается имя файла из
                     % которого будет считана запись сигнала
 % Удаление отсчётов сигнала с артефактами
     Signal = Signal(7:end);
@@ -21,7 +21,7 @@
     FSignal = Matched_Filter(Signal, 0);
 
 % Слотовая синхронизация - поиск базовых станций (БС)
-    Slots_Offsets = Slot_Synchronization(FSignal, 0);
+    Slots_Offsets = Slot_Synchronization(FSignal, false);
     
 % Для каждой найденной БС проводим следующие процедуры обработки
     if ~isempty(Slots_Offsets)
@@ -29,22 +29,22 @@
         % канала найденных БС
             BCCHs = cell(length(Slots_Offsets), 1);
 
-        for k = 1:1%length(Slots_Offsets) % Для каждой БС
+        for k = 1:length(Slots_Offsets) % Для каждой БС
             % Кадровая синхронизация    
                 [Frame_Offset, SG] = Frame_Synchronization(FSignal, ...
-                    Slots_Offsets(1, k), 0);
+                    Slots_Offsets(1, k), false);
 
             % Определение номера скремблирующей последовательности    
                 SC_Num = Scrambling_Code_Determination(FSignal, ...
-                    Frame_Offset, SG, 0);
+                    Frame_Offset, SG, false);
 
             % Построение rake-шаблона
                 Rake_Pattern = Rake_Pattern_Calculation(Signal, ...
-                    FSignal, Frame_Offset, SC_Num, 0);
+                    FSignal, Frame_Offset, SC_Num, false);
 
             % Демодуляция вещательного канала
                 PCCPCH_Bits = One_Ray_PCCPCH_Demodulation(Signal, ...
-                    Rake_Pattern, Frame_Offset, SC_Num, 0);
+                    Rake_Pattern, Frame_Offset, SC_Num, false);
             % Декодирование транспортных блоков вещательного канала
                 [Flag_isOk, BCCH] = Decode_BCCH(PCCPCH_Bits);
                 display(Flag_isOk);
