@@ -12,49 +12,65 @@ function [Flag_isOk, BCCH] = Decode_BCCH(Coded_BCCH)
 %   Flag_isOk - указывает на то, был ли успешно декодирован хотя бы один 
 %               транспортный блок BCCH.
 
-% Флаг, указывающий на то, сошлось ли CRC хотя бы для одного транспортного
-% блока
-    isCRCCorrect = false;
+% Инициализация результата
+    BCCH = [];
 
-% Выбираем из потока блоки по 540 бит с шагом 270 бит и обрабатываем их до
-% тех пор, пока не сойдется CRC
-    Pos = 1;
+% Параметры
+    % Число блоков по 270 бит
+        Num270Blocks = length(Coded_BCCH) / 270;
 
-    while 1%~isCRCCorrect        
-        % Если обрабатывать больше нечего, то выводим флаг о неудаче
-        % ...
-
+% Выбираем и обрабатываем блоки по 540 бит, каждый раз смещаясь на 270
+% бит вперед
+    for Pos = 1:Num270Blocks-1
         % Выбираем очередной блок бит длиной 540
             CurrentBlock = Coded_BCCH((1:540) + (Pos-1)*270);
 
-        % Разбиваем блок на менее крупные блоки по 270 бит
-            Blocks270 = reshape(CurrentBlock, 270, 2); % Блоки по 270 бит
-                                                       % расположены по 
-                                                       % столбцам
-       % Деперемежение блоков по 270
-            Blocks270DeInt = zeros(size(Blocks270));
-            Blocks270DeInt(:, 1) = Second_DeInterleaver(Blocks270(:, 1)')';
-            Blocks270DeInt(:, 2) = Second_DeInterleaver(Blocks270(:, 2)')';
+        % Процедура декодирования
+            [Flag_isCRCOk, Buf] = Decode_Single_Block540(CurrentBlock);
 
-        % Объединение деперемежённых блоков
-            Block540 = Blocks270DeInt(:)';
-
-        % Повторное деперемежение
-            Block540DeInt = First_DeInterleaver(Block540, 2);
-
-        % Декодирование алгоритмом Витерби
-            DecodedBlock = Convolutional_Decoder(Block540DeInt, 1);
-
-        % Отбрасывание хвоста и проверка CRC
-            [isCRCCorrect, Buf] = Check_CRC(DecodedBlock, 16);
-
-        % Если CRC не сошлось, увеличиваем позицию указателя и обрабатывам
-        % следующий блок со смещением на 270 бит вперед
-            if ~isCRCCorrect
-                Pos = Pos+1;
-            else
-                BCCH = Buf;
+        % Если CRC сошлось, сохраняем декодированные данные 
+            if Flag_isCRCOk
+                BCCH(:, end+1) = Buf;
             end
     end
 
-1;
+% Определяем значение Flag_isOk
+    if numel(BCCH) > 0
+        Flag_isOk = true;
+    else
+        Flag_isOk = false;
+    end
+
+
+function [Flag_isOk, BCCH] = Decode_Single_Block540(Block540)
+% Функция декодировния блока длиной 540 бит
+%
+% Входные парамтеры:
+%   Block540 - массив бит длиной 540;
+%
+% Выходные параметры:
+%   Flag_isOk - флаг, указывающий, сошлось ли CRC при декодировании;
+%   BCCH      - массив-столбец длиной 246, содержащий биты после 
+%               декодирования. Если Flag_isOk = false, то BCCH = [].
+
+% Разбиваем блок на менее крупные блоки по 270 бит
+    Blocks270 = reshape(Block540, 270, 2); % Блоки по 270 бит
+                                           % расположены по
+                                           % столбцам
+% Деперемежение блоков по 270
+    Blocks270DeInt = zeros(size(Blocks270));
+    Blocks270DeInt(:, 1) = Second_DeInterleaver(Blocks270(:, 1)')';
+    Blocks270DeInt(:, 2) = Second_DeInterleaver(Blocks270(:, 2)')';
+
+% Объединение деперемежённых блоков
+    Block540 = Blocks270DeInt(:)';
+
+% Повторное деперемежение
+    Block540DeInt = First_DeInterleaver(Block540, 2);
+
+% Декодирование алгоритмом Витерби
+    DecodedBlock = Convolutional_Decoder(Block540DeInt, 1);
+
+% Отбрасывание хвоста и проверка CRC
+    [Flag_isOk, BCCH] = Check_CRC(DecodedBlock, 16);
+    BCCH = BCCH.';
