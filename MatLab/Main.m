@@ -10,7 +10,7 @@
     
 % Загрузка массива Signal с записью сигнала    
     % Beeline Megafon Megafon5 Megafon99 Megafon99_01 MTS   
-    load('Megafon99_01');    % В кавычках указывается имя файла из
+    load('MTS');    % В кавычках указывается имя файла из
                     % которого будет считана запись сигнала
 % Удаление отсчётов сигнала с артефактами
     Signal = Signal(7:end);
@@ -52,11 +52,8 @@
                 BCCHs{k, 1} = BCCH;
         end
     end
-
-% Сообщение о завершении работы
-    fprintf('%s Обработка завершена.\n', datestr(now));
     
 % Удаление путей
-%     rmpath([cd, '\Signals']);
-%     rmpath([cd, '\Common']);
-%     rmpath([cd, '\Main']);
+    rmpath([cd, '\Signals']);
+    rmpath([cd, '\Common']);
+    rmpath([cd, '\Main']);
