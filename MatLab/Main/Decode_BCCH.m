@@ -30,7 +30,7 @@ function [Flag_isOk, BCCH] = Decode_BCCH(Coded_BCCH)
 
         % Если CRC сошлось, сохраняем декодированные данные 
             if Flag_isCRCOk
-                BCCH(:, end+1) = Buf;
+                BCCH(end+1, :) = Buf;
             end
     end
 
@@ -73,4 +73,3 @@ function [Flag_isOk, BCCH] = Decode_Single_Block540(Block540)
 
 % Отбрасывание хвоста и проверка CRC
     [Flag_isOk, BCCH] = Check_CRC(DecodedBlock, 16);
-    BCCH = BCCH.';
