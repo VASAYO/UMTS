@@ -52,6 +52,15 @@
                 BCCHs{k, 1} = BCCH;
         end
     end
+
+% Анализ декодированной системной информации
+    MNC = cell( 0 );
+    MCC = cell( 0 );
+    for k = 1:length( BCCHs )
+        if ~isequal( BCCHs{k}, [] )
+            [ ~, MCC{ end+1 }, MNC{ end+1 } ] = Parse_BCCH( BCCHs{k} );
+        end
+    end
     
 % Удаление путей
     rmpath([cd, '\Signals']);
