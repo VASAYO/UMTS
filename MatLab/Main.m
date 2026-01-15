@@ -58,10 +58,10 @@
     MCC = cell( 0 );
     for k = 1:length( BCCHs )
         if ~isequal( BCCHs{k}, [] )
-            [ ~, MCC{ end+1 }, MNC{ end+1 } ] = Parse_BCCH( BCCHs{k} );
+            [ ~, MCC{ end+1 }, MNC{ end+1 } ] = Parse_BCCH( BCCHs{k} ); %#ok<SAGROW>
         end
     end
-    
+
 % Удаление путей
     rmpath([cd, '\Signals']);
     rmpath([cd, '\Common']);
