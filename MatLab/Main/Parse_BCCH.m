@@ -76,6 +76,7 @@ function [Flag_isOk, MCC, MNC] = Parse_BCCH(BCCH)
                     % Если данный БСИ является ГИБом, то выбираем биты ГИБа
                         if SIBType == 0
                             MIB = ProcBCCH( (1:SIBSize)+Ptr+5+8+1);
+                            break;
                         end
 
                     % Переходим к обработке заголовка следующего полного
