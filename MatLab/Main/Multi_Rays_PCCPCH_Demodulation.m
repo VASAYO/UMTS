@@ -1,7 +1,7 @@
 function PCCPCH_Bits = Multi_Rays_PCCPCH_Demodulation(Signal, ...
     Rake_Pattern, Frame_Offset, SC_Num, Flag_Draw)
-% Функция выполняет многолучевую демодуляцию всех кадров вещательного
-% канала, имеющихся в Signal.
+% Функция выполняет однолучевую демодуляцию всех кадров вещательного канала
+% имеющихся в Signal.
 %
 % Входные переменные:
 %   Signal       – комплексный массив, содержащий отсчеты исходного
@@ -16,155 +16,170 @@ function PCCPCH_Bits = Multi_Rays_PCCPCH_Demodulation(Signal, ...
 %                  необходимость прорисовки.
 %
 % Выходные переменные:
-% PCCPCH_Bits - массив-строка (длина кратна 270), содержащий значения
-%               бит всех кадров канала PCCPCH, считанных из Signal.
+%   PCCPCH_Bits - массив-строка (длина кратна 270), содержащий значения
+%                 бит всех кадров канала PCCPCH, считанных из Signal.
 
-Fs = 3.84e6; % Частота дискретизации
-Rd = 2; % Удвоение Fs
-SF = 256; % Коэффициент расширения
-N_SymsPerSlot = 10;
-N_SlotsPerFrame = 15;
+% Последовательность действий:
+%   1. Определить 2-3 луча, для которых будет проводиться обработка;
+%   2. Для каждого луча выполнить:
+%     * Согласованную фильтрацию сигнала с предварительной компенсацией 
+%       частотной отстройки луча;
+%     * Дескрэмблирование чипов луча;
+%     * Вычисление модуляционных символов (дерасширение);
+%     * Оценка канала с использованием CPICH и эквалайзинг;
+%     * Оценка дисперсии шума;
+%   3. Выполнить сложение лучей с весами, равными обратной дисперсии шума в 
+%      каждом луче;
+%   4. Выполнить демодуляцию первичного общего канала управления.
 
-N_ChipsPerSlot = N_SymsPerSlot * SF; % 2560
-N_SymsPerFrame = N_SymsPerSlot * N_SlotsPerFrame; % 150
-N_ChipsPerFrame = N_ChipsPerSlot * N_SlotsPerFrame; % 38400
+% Параметры
+    % Максимальное число обрабатываемых лучей
+        MaxNumProcRays = 2;
+    % Число чипов в одном кадре
+        ChiPerFrame = 38400;
+    % Число слотов в одном кадре
+        SlotsPerFrame = 15;
+    % Число бит P-CCPCH в одном кадре
+        DataBitsPerFrame = 270;
+    % Коэффициент расширения
+        SF = 256;
 
-% Зададим, сколько максимум лучей обрабатывать
-    N_Rays_Max = 2;
+    % Каналообразующие и скремблирующий коды
+        ChCodeData  = Generate_Channelisation_Code(256, 1);
+        ChCodePilot = Generate_Channelisation_Code(256, 0);
+        ScrCode     = Generate_Scrambling_Code(SC_Num);
 
-% Сдвинутый к началу кадра сигнал (весь)
-    ShiftSignal = Signal(Frame_Offset+1 : 2 : end);
-% Число принятых цельных кадров в записи
-    N_Frames = floor(length(ShiftSignal) / N_ChipsPerFrame);
+% Выбор лучей
+    % Сдвиги до начала кадра соответствующих лучей и их частотные отстройки
+        Rays_Offsets = [];
+        Rays_dfs     = [];
+    % Определим порог обнаружение лучей относительно величины главного луча
+        Rays_Detect_Treshold = 0.3 * max(Rake_Pattern.Correl);
+    
+    FoundRays = 0;
+    RaysDetection = Rake_Pattern.Correl;
+    IndMidElem = median(1:length(RaysDetection) );
 
-% Скремблирующий код
-    Sn = Generate_Scrambling_Code(SC_Num);
-% Размножим его, чтобы обрабатывать сразу всю запись
-    Sns = repmat(Sn, 1,  N_Frames);
-% Каналообразующий код пилотного канала
-    ChCode4Pilot = Generate_Channelisation_Code(SF, 0);
-% Каналообразующий код канала управления
-    ChCode4Control = Generate_Channelisation_Code(SF, 1);
+    while FoundRays < MaxNumProcRays && ...
+            sum(Rake_Pattern.Correl > Rays_Detect_Treshold) > 0
+        % Выбираем луч
+            [~, Buf ] = max(RaysDetection);
+            Rays_Offsets(end+1) = Frame_Offset + Buf -IndMidElem; %#ok<*AGROW>
+            Rays_dfs    (end+1) = Rake_Pattern.dfs(Buf);
 
-% Символы пилотного канала и канала управления
-    ChPilot = zeros(1, N_SymsPerFrame * N_Frames);
-    ChControl = zeros(1, N_SymsPerFrame * N_Frames);
-
-% Массив с лучами, записанными по строкам
-    Rays = zeros(N_Rays_Max, N_ChipsPerFrame * N_Frames);
-% Амплитуда по rake-шаблону основного луча
-    Ampl_MaxRay = max(Rake_Pattern.Correl(1,:));
-% Установим порог амплитуды по rake-шаблону относительно основного луча
-    Trashold = 0.1 * Ampl_MaxRay;
-% Запишем подходящие лучи в массив
-    i = 1; % Число обработанных лучей
-    while(true)
-        % Амплитуда максимального луча и его позиция
-            [Ampl_MaxRay, idxMax] = max(Rake_Pattern.Correl(1,:));
-        % Условие выполнения цикла
-            if Ampl_MaxRay > Trashold && i <= N_Rays_Max
-                % Частотная отстройка для текущего луча
-                    df = Rake_Pattern.dfs(idxMax);
-                % Сдвиг до текущего луча от начала кадра
-                    Shift = Rake_Pattern.Correl(2,idxMax);
-                % Согласованная фильтрация
-                    FSignal = Matched_Filter(Signal, df);
-                % Берём из записи все целые кадры данного луча и сохраняем
-                    Rays(i,:) = FSignal(Frame_Offset + Shift + ...
-                        (1 : 2 : N_ChipsPerFrame*Rd*N_Frames));
-                % Удаляем из rake-шаблона текщий лучь и два его соседа
-                    Rake_Pattern.Correl(1, idxMax - 1 : idxMax + 1) = 0;
-                % Переходим к следующему лучу
-                    i = i + 1;
+        % Зануляем в rake-шаблоне выбранный луч и два соседних отсчёта
+            if Buf == 1
+                P1 = Buf;
             else
-                % Выходим из цикла, сохраняем фактическое число
-                % обработанных лучей
-                    N_Rays = i - 1;
-                    break
+                P1 = Buf - 1;
             end
+            if Buf == length(RaysDetection)
+                P2 = Buf;
+            else
+                P2 = Buf + 1;
+            end
+            RaysDetection(P1 : P2) = 0;
+            
+        FoundRays = FoundRays + 1;
     end
-% Обрежем пустое место в массиве, если оно есть
-    Rays = Rays(1 : N_Rays, :);
 
+% Обработка лучей
+    % Переменные для хранения модуляционных символов CHICH и PCCPCH разных
+    % лучей
+        SymbolsData  = cell(1, FoundRays);
+        SymbolsPilot = cell(1, FoundRays);
+    % Оценки канала
+        ChEst  = cell(1, FoundRays);
+    % Дисперсия шума в разных лучах
+        Noise_Vars = zeros(1, FoundRays);
+    % Число обрабатываемых кадров в каждом луче
+        NumProcFrames = zeros(1, FoundRays);
 
-% Дисперсии и ОСШ лучей
-    D_Noise = zeros(1, N_Rays);
-    SNRs = zeros(1, N_Rays);
-% Количество символов во всех кадрах без синхроканалов
-    N_SymsPerFrames = (N_SymsPerFrame - N_SlotsPerFrame) * N_Frames;
-% Суммарный сигнал
-    SumRaysSyms = zeros(1, N_SymsPerFrames);
-for i = 1 : N_Rays % Для каждого луча
+    for k = 1:FoundRays
+        % Согласованная фильтрация с компенсацией частотной отстройки
+            FSignal = Matched_Filter(Signal, Rays_dfs(k) );
+        % Чипы луча
+            Chips = FSignal(Rays_Offsets(k):2:end);
+        % Число обрабатываемых кадров
+            NumProcFrames(k) = floor(length(Chips) / ChiPerFrame);
 
-    % Процедура дескремблирования
-        DeScrFrames = Rays(i, :) .* conj(Sns);
+        % Память под модуляционные символы данного луча. 
+        %   Первое измерение - индексация символов внутри слота, 
+        %   второе измерение - индексация слотов внутри кадра, 
+        %   третье измерение - индексация обрабатываемых кадров.
+            SymbolsData{k} = ...
+                zeros(10-1, SlotsPerFrame, NumProcFrames(k) );
+            % SymbolsDataEq{end+1} = SymbolsData{end};
+            SymbolsPilot{k} = ...
+                zeros(10, SlotsPerFrame, NumProcFrames(k) );
 
-    % Процедура, обратная процедуре каналообразования (дерасширение)
-        idx1 = 1; % Номер символа сквозь кадры (1..150*N_Frames)
-        for j = 1 : SF : length(DeScrFrames) - SF + 1 % Для каждого символа
-            ChPilot(idx1) = sum(DeScrFrames(j : j+SF-1) .* ChCode4Pilot);
-            ChControl(idx1) = sum(DeScrFrames(j : j+SF-1) .* ChCode4Control);
-            idx1 = idx1 + 1; % Переходим к следующему символу
+        Chips = Chips(1 : NumProcFrames(k) * ChiPerFrame);
+        Chips = reshape(Chips, ChiPerFrame, []);
+
+        % Дескрэмблирование
+            ChipsDeScr = Chips .* ...
+                conj(repmat(ScrCode.', 1, NumProcFrames(k) ) ) / sqrt(2);
+
+        % Дерасширение модуляционных символов
+            ChipsDeScr = reshape(ChipsDeScr(:), SF, []);
+
+        % Получение символов CPICH
+            Buf = ChCodePilot * ChipsDeScr;
+            SymbolsPilot{k} = ...
+                reshape(Buf, 10, SlotsPerFrame, NumProcFrames(k) );
+        % Получение символов P-CCPCH
+            Buf = ChCodeData * ChipsDeScr;
+            SymbolsData{k} = ...
+                reshape(Buf, 10, SlotsPerFrame, NumProcFrames(k) );
+            % Удаление в первого символа в каждом слоте т.к. в эти моменты
+            % времени P-CCPCH не передаётся
+                SymbolsData{k} = SymbolsData{k}(2:end, :, :);
+
+        % Оценка канала и дисперсии шума
+            ChEst{k} = SymbolsPilot{k}(2:end, :, :) / (1 + 1j);
+            Noise_Vars(k) = SNR_Estimate(SymbolsPilot{k}(:) );
+    end
+
+% Суммирование лучей с весовыми коэффициентами
+    SumRays = zeros(size(SymbolsData{1} ) );
+
+    for k = 1:FoundRays
+        SumRays = SumRays + ...
+            SymbolsData{k} .* conj(ChEst{k} ) ./ Noise_Vars(k);
+    end
+
+% Демодуляция символов канала управления
+    Buf = SumRays(:);
+    PCCPCH_Bits = nan(1, DataBitsPerFrame * max(NumProcFrames) );
+    for k = 1 : DataBitsPerFrame * max(NumProcFrames) / 2
+        if (real(Buf(k)) >= 0)
+            PCCPCH_Bits(2*(k -1) + 1) = 0;
+        else
+            PCCPCH_Bits(2*(k -1) + 1) = 1;
         end
-
-    % Делим символы канала управления на комплексный коэффициент передачи, 
-    % оценённый по пилотному каналу
-        ChControlSyms_WithSCh = ChControl ./ ChPilot * (1+1i);
-
-    % Избавляемся от синхроканалов
-        ChControlSyms = ...
-            zeros(1, N_SymsPerFrames);
-        i1 = 1; % Индекс для целевого массива
-        % Идём по каждому слоту исходного сигнала (с синхроканалами)
-        for i2 = 1 : 10 : length(ChControlSyms_WithSCh)
-            % Из начала каждого слота убираем 1-ый символ, 9 оставляем
-                ChControlSyms(i1 : i1+8) = ...
-                    ChControlSyms_WithSCh(i2+1 : i2+9);
-                i1 = i1 + 9; % Двигаемся к следующему слоту
+        if (imag(Buf(k)) >= 0)
+            PCCPCH_Bits(2*k) = 0;
+        else
+            PCCPCH_Bits(2*k) = 1;
         end
+    end
 
-    % Отрисовка сигнального созвездия
-        if Flag_Draw
-            scatterplot(ChControlSyms);
-            title(['Лучь ', num2str(i)]);
-        end
-
-    % Оценим ОСШ и дисперсию, сохраним результат в массив ко всем лучам
-        [SNRs(i), D_Noise(i)] = SNR_Estimate(ChControlSyms);
-    
-    % Добавляем текущий луч в сумму
-        SumRaysSyms = SumRaysSyms + ChControlSyms / D_Noise(i);
-end
-
-% Нормируем сумму
-    SumRaysSyms = SumRaysSyms / sum(1./D_Noise);
-    
-% Отрисовка сигнального созвездия
+% Прорисовка результатов
     if Flag_Draw
-        scatterplot(SumRaysSyms);
-        title('Суммарный сигнал');
-    end
-
-% Оценим ОСШ и дисперсию суммарного сигнала
-    [SNR_Sum, ~] = SNR_Estimate(SumRaysSyms);
-    
-% Вывод результата
-    if Flag_Draw
-        disp('Оценка ОСШ:');
-        for i = 1 : length(SNRs)
-            disp(['Лучь ', num2str(i), ': SNR = ', num2str(SNRs(i)), ' дБ']);
+        figure(Name=['Multi_Rays_PCCPCH_Demodulation.m: ' ...
+            'созвездия лучей по отдельности'])
+        for k = 1:FoundRays
+            subplot(1, FoundRays, k);
+            plot(SymbolsData{k}(:) ./ ChEst{k}(:), '.' ); 
+            grid minor; axis equal;
         end
-        disp(['Сумма ОСШ лучей: SNR = ', num2str(sum(SNRs)), ' дБ']);
-        disp(['ОСШ суммы лучей: SNR = ', num2str(SNR_Sum), ' дБ']);
+
+        figure(Name=['Multi_Rays_PCCPCH_Demodulation.m: ' ...
+            'созвездие комбинированного сигнала'])
+        plot(SumRays(:), '.' ); 
+            grid minor; axis equal;
     end
 
-% Демодуляция, '-' -> 1, '+' -> 0
-    PCCPCH_Bits = zeros(1, 2 * length(SumRaysSyms));
-    PCCPCH_Bits(1:2:end) = (-sign(real(SumRaysSyms)) + 1) / 2;
-    PCCPCH_Bits(2:2:end) = (-sign(imag(SumRaysSyms)) + 1) / 2;
-    PCCPCH_Bits(PCCPCH_Bits ~= 0 & PCCPCH_Bits ~= 1) = 0;
-
-end
 
 function [SNRat, D_Noise] = SNR_Estimate(SigSyms)
     % Амплитуда символа
@@ -172,7 +187,6 @@ function [SNRat, D_Noise] = SNR_Estimate(SigSyms)
     % Удалим шум
         WithoutNois = ...
             AmplSym * (sign(real(SigSyms)) + 1i * sign(imag(SigSyms)));
-    %     scatterplot(WithoutNois);
     % Выделим шум
         Noise = SigSyms - WithoutNois;
     %     scatterplot(Noise);
@@ -182,4 +196,3 @@ function [SNRat, D_Noise] = SNR_Estimate(SigSyms)
         SNRat = mean(abs(SigSyms).^2) / D_Noise;
     % Переведём ОСШ в дБ
         SNRat = 10*log10(SNRat);
-end

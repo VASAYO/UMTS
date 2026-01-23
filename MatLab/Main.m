@@ -10,8 +10,8 @@
     
 % Загрузка массива Signal с записью сигнала    
     % Beeline Megafon Megafon5 Megafon99 Megafon99_01 MTS   
-    load('MTS');    % В кавычках указывается имя файла из
-                    % которого будет считана запись сигнала
+    load('Megafon'); % В кавычках указывается имя файла из
+                     % которого будет считана запись сигнала
 % Удаление отсчётов сигнала с артефактами
     Signal = Signal(7:end);
          
@@ -43,8 +43,13 @@
                     FSignal, Frame_Offset, SC_Num, false);
 
             % Демодуляция вещательного канала
-                PCCPCH_Bits = One_Ray_PCCPCH_Demodulation(Signal, ...
+                % PCCPCH_Bits = One_Ray_PCCPCH_Demodulation(Signal, ...
+                %     Rake_Pattern, Frame_Offset, SC_Num, false);
+
+            % Многолучевая демодуляция вещательного канала
+                PCCPCH_Bits = Multi_Rays_PCCPCH_Demodulation(Signal, ...
                     Rake_Pattern, Frame_Offset, SC_Num, false);
+
             % Декодирование транспортных блоков вещательного канала
                 [Flag_isOk, BCCH] = Decode_BCCH(PCCPCH_Bits);
                 display(Flag_isOk);
